@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pendingApprove: (id: string) => ipcRenderer.invoke('pending:approve', id),
   pendingApproveAll: (repo?: string) => ipcRenderer.invoke('pending:approve-all', repo),
   pendingAuditAll: () => ipcRenderer.invoke('pending:audit-all'),
+  pendingClearRejected: () => ipcRenderer.invoke('pending:clear-rejected'),
 
   // ============ 贡献追踪 ============
   contributionList: () => ipcRenderer.invoke('contribution:list'),

@@ -256,15 +256,25 @@ export class CollectorEngine extends EventEmitter {
               source.targetRepo,
               source.id,
             )
-            pendingResourceStore.addItem(item)
-            progress.collectedItems++
-            this.emit('progress', {
-              type: 'item_collected',
-              sourceId: source.id,
-              sourceName: source.name,
-              data: { item: item.name, id: item.id },
-              progress: { ...progress },
-            } as ProgressEvent)
+            const dedupResult = pendingResourceStore.addItemIfNew(item)
+            if (dedupResult.added) {
+              progress.collectedItems++
+              this.emit('progress', {
+                type: 'item_collected',
+                sourceId: source.id,
+                sourceName: source.name,
+                data: { item: item.name, id: item.id },
+                progress: { ...progress },
+              } as ProgressEvent)
+            } else {
+              this.emit('progress', {
+                type: 'item_collected',
+                sourceId: source.id,
+                sourceName: source.name,
+                data: { item: item.name, id: item.id, skipped: true, duplicateOf: dedupResult.duplicateOf },
+                progress: { ...progress },
+              } as ProgressEvent)
+            }
           } catch {
             progress.failedItems++
           }

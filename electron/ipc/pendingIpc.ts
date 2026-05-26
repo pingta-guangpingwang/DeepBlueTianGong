@@ -115,25 +115,62 @@ export function registerPendingIpc(): void {
     return { success: true, results }
   })
 
-  // AI 自动审核：对所有 pending 项执行基本评分
+  // AI 自动审核：对所有 pending 项执行评分，低分自动拒绝
   ipcMain.handle('pending:audit-all', async () => {
     const pending = pendingResourceStore.getItemsByStatus('pending')
+    let audited = 0
+    let rejected = 0
+
     for (const item of pending) {
       let score = 5
+
+      // 内容质量评分
+      if (item.summary && item.summary.length > 20) score += 1
       if (item.summary && item.summary.length > 50) score += 1
       if (item.summary && item.summary.length > 100) score += 1
-      if (item.name && item.name.length > 1) score += 1
+      if (item.name && item.name.length > 1 && item.name.length < 100) score += 1
       if (item.techStack && item.techStack.length > 0) score += 1
       if (item.sourceUrl && item.sourceUrl.startsWith('http')) score += 1
-      score = Math.min(score, 10)
 
-      pendingResourceStore.updateItem(item.id, {
-        status: 'audited',
-        auditScore: score,
-        auditedAt: new Date().toISOString(),
-      })
+      // 扣分项
+      if (!item.summary || item.summary.length < 10) score -= 2
+      if (!item.name || item.name.length === 0) score -= 3
+      if (item.rawContent && item.rawContent.length < 50) score -= 2
+
+      score = Math.max(1, Math.min(score, 10))
+
+      // 去重检查
+      const dup = pendingResourceStore.findDuplicate(item)
+      const isDuplicate = dup !== null
+
+      if (score < 4 || isDuplicate) {
+        pendingResourceStore.updateItem(item.id, {
+          status: 'rejected',
+          auditScore: score,
+          auditNotes: isDuplicate ? `重复项（重复于: ${dup?.id}）` : `评分过低 (${score}/10)`,
+          auditedAt: new Date().toISOString(),
+        })
+        rejected++
+      } else {
+        pendingResourceStore.updateItem(item.id, {
+          status: 'audited',
+          auditScore: score,
+          auditNotes: score >= 8 ? '高质量，建议优先入库' : score >= 6 ? '合格' : '基本合格，请人工复核',
+          auditedAt: new Date().toISOString(),
+        })
+        audited++
+      }
     }
-    return { success: true, audited: pending.length }
+    return { success: true, audited, rejected }
+  })
+
+  // 清理已拒绝项
+  ipcMain.handle('pending:clear-rejected', async () => {
+    const rejected = pendingResourceStore.getItemsByStatus('rejected')
+    for (const item of rejected) {
+      pendingResourceStore.removeItem(item.id)
+    }
+    return { success: true, removed: rejected.length }
   })
 
   // ---- 贡献追踪 ----

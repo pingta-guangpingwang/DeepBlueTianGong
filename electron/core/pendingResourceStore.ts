@@ -58,9 +58,77 @@ class PendingResourceStore {
     return this.data.items.filter(i => i.status === status)
   }
 
-  addItem(item: PendingResourceItem): void {
+  /** 查找重复项：按 id > name+repo > sourceUrl 优先级匹配 */
+  findDuplicate(item: PendingResourceItem): PendingResourceItem | null {
+    // 1. 精确 ID 匹配
+    const byId = this.data.items.find(i => i.id === item.id)
+    if (byId) return byId
+
+    // 2. 同仓库 + 同名
+    const byName = this.data.items.find(i =>
+      i.name === item.name && i.targetRepo === item.targetRepo
+    )
+    if (byName) return byName
+
+    // 3. 相同来源 URL（非空）
+    if (item.sourceUrl) {
+      const byUrl = this.data.items.find(i =>
+        i.sourceUrl === item.sourceUrl && i.sourceUrl.length > 0
+      )
+      if (byUrl) return byUrl
+    }
+
+    return null
+  }
+
+  /** 如果非重复则添加，返回是否实际添加 */
+  addItemIfNew(item: PendingResourceItem): { added: boolean; duplicateOf?: string } {
+    const dup = this.findDuplicate(item)
+    if (dup) {
+      console.log('[pendingStore] 跳过重复项:', item.name, '→ 重复于:', dup.name, '(id:', dup.id, ')')
+      return { added: false, duplicateOf: dup.id }
+    }
     this.data.items.push(item)
     this.save()
+    return { added: true }
+  }
+
+  addItem(item: PendingResourceItem): void {
+    // 向下兼容：直接添加不做去重（collectorEngine 使用 addItemIfNew）
+    this.data.items.push(item)
+    this.save()
+  }
+
+  /** 批量去重检查：返回需要添加的新项 */
+  filterDuplicates(items: PendingResourceItem[]): PendingResourceItem[] {
+    const newItems: PendingResourceItem[] = []
+    for (const item of items) {
+      if (!this.findDuplicate(item)) {
+        newItems.push(item)
+      }
+    }
+    return newItems
+  }
+
+  /** 批量添加（带去重） */
+  addItems(items: PendingResourceItem[]): { added: number; skipped: number } {
+    const newItems = this.filterDuplicates(items)
+    for (const item of newItems) {
+      this.data.items.push(item)
+    }
+    if (newItems.length > 0) this.save()
+    return { added: newItems.length, skipped: items.length - newItems.length }
+  }
+
+  /** 检查指定 ID 是否在任意状态存在 */
+  exists(id: string): boolean {
+    return this.data.items.some(i => i.id === id)
+  }
+
+  /** 根据 sourceUrl 检查是否已有条目（跨仓库） */
+  existsByUrl(url: string): boolean {
+    if (!url) return false
+    return this.data.items.some(i => i.sourceUrl === url)
   }
 
   removeItem(id: string): boolean {

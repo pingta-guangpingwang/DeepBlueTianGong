@@ -112,7 +112,8 @@ export interface ElectronAPI {
   pendingCleanup: () => Promise<{ success: boolean; removed: number }>
   pendingApprove: (id: string) => Promise<{ success: boolean; message?: string }>
   pendingApproveAll: (repo?: string) => Promise<{ success: boolean; results: Array<{ id: string; success: boolean }> }>
-  pendingAuditAll: () => Promise<{ success: boolean; audited: number }>
+  pendingAuditAll: () => Promise<{ success: boolean; audited: number; rejected: number }>
+  pendingClearRejected: () => Promise<{ success: boolean; removed: number }>
 
   // 贡献追踪
   contributionList: () => Promise<any[]>
