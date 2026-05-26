@@ -66,10 +66,20 @@ export interface SourceConfig {
 }
 
 export interface CollectorEvent {
-  type: 'started' | 'progress' | 'runner_update' | 'done' | 'error' | 'aborted'
+  type: 'source_start' | 'source_done' | 'source_error' | 'runner_start' | 'runner_progress' | 'runner_done' | 'runner_error' | 'item_collected' | 'started' | 'progress' | 'done' | 'error' | 'aborted' | 'auto_submit_triggered'
   sourceId?: string
+  sourceName?: string
   message?: string
   data?: any
+  progress?: {
+    totalBatches: number
+    completedBatches: number
+    totalItems: number
+    collectedItems: number
+    failedItems: number
+    runningRunners: number
+  }
+  targetRepo?: string
 }
 
 export interface CommitResult {
@@ -112,7 +122,7 @@ export interface ElectronAPI {
   // 采集控制
   collectorRun: (sourceId: string) => Promise<{ success: boolean; message: string }>
   collectorAbort: () => Promise<{ success: boolean; message: string }>
-  collectorStatus: () => Promise<{ running: boolean; currentTask: any }>
+  collectorStatus: () => Promise<{ running: boolean; currentSourceId: string | null; pool: Array<{ taskId: string; state: string; progress: { collected: number; batchIndex: number } }>; history: any[] }>
   collectorHistory: () => Promise<any[]>
   collectorOnEvent: (callback: (event: CollectorEvent) => void) => () => void
 
