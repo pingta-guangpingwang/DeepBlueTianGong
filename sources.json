@@ -1,0 +1,27 @@
+{
+  "sources": [
+    {
+      "id": "baidu-history-people",
+      "name": "百度百科-中国历史人物",
+      "targetRepo": "AIHistoryPeople",
+      "prompt": "从百度百科采集中国历代著名人物数据，每条包含姓名、朝代、生卒年、主要成就、历史评价。输出为标准 YAML frontmatter + 正文格式。",
+      "schedule": "0 3 * * 0",
+      "parallelism": 2,
+      "batchSize": 10,
+      "enabled": false,
+      "autoSubmit": false
+    },
+    {
+      "id": "wiki-history-events",
+      "name": "维基百科-世界历史事件",
+      "targetRepo": "AIHistoryEvents",
+      "prompt": "从维基百科采集世界重大历史事件，每条包含事件名称、时间、地点、参与方、起因、经过、结果、历史影响。",
+      "schedule": "manual",
+      "parallelism": 3,
+      "batchSize": 15,
+      "enabled": false,
+      "autoSubmit": false
+    }
+  ],
+  "updatedAt": "2026-05-27T00:00:00Z"
+}

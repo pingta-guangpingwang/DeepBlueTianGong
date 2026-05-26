@@ -1,0 +1,36 @@
+{
+  "name": "deepblue-tiangong",
+  "version": "1.0.0",
+  "description": "深蓝天工 · AI 驱动的多线程知识采集、整理、审核、发布引擎",
+  "type": "commonjs",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build:electron": "tsc --project tsconfig.node.json",
+    "dev-electron": "concurrently \"vite\" \"wait-on file:.vite/port && tsc --project tsconfig.node.json && cross-env NODE_ENV=development electron .\"",
+    "build": "tsc --project tsconfig.node.json && vite build",
+    "electron": "electron .",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "js-yaml": "^4.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.6.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^8.0.3",
+    "wait-on": "^7.2.0"
+  }
+}

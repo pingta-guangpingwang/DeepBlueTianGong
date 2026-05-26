@@ -1,0 +1,71 @@
+{
+  "version": "1.0",
+  "repos": [
+    {
+      "name": "DeepBluePrompt",
+      "label": "深蓝提示词库",
+      "labelEn": "DeepBlue Prompt Library",
+      "remote": "https://github.com/pingta-guangpingwang/DeepBluePrompt.git",
+      "visible": true,
+      "taxonomy": {
+        "types": [
+          { "id": "prompt", "label": "提示词", "dir": "prompts" }
+        ],
+        "categories": ["开发", "写作", "设计", "分析", "翻译", "教育"],
+        "requiredFields": ["id", "name", "type", "category", "summary"],
+        "optionalFields": ["subcategory", "tech_stack", "style_tags", "use_cases", "source_url"]
+      }
+    },
+    {
+      "name": "DeepBlueCase",
+      "label": "深蓝案例坊",
+      "labelEn": "DeepBlue Case Workshop",
+      "remote": "https://github.com/pingta-guangpingwang/DeepBlueCase.git",
+      "visible": true,
+      "taxonomy": {
+        "types": [
+          { "id": "template", "label": "模板", "dir": "templates" },
+          { "id": "case", "label": "案例", "dir": "cases" }
+        ],
+        "categories": ["开发", "写作", "设计", "分析"],
+        "requiredFields": ["id", "name", "type", "category", "summary"],
+        "optionalFields": ["tech_stack", "style_tags", "use_cases", "source_url"]
+      }
+    },
+    {
+      "name": "DeepBlueKit",
+      "label": "深蓝工具集",
+      "labelEn": "DeepBlue Kit",
+      "remote": "https://github.com/pingta-guangpingwang/DeepBlueKit.git",
+      "visible": true,
+      "taxonomy": {
+        "types": [
+          { "id": "plugin", "label": "插件", "dir": "plugins" },
+          { "id": "tool", "label": "工具", "dir": "tools" },
+          { "id": "skill", "label": "技能", "dir": "skills" },
+          { "id": "mcp-server", "label": "MCP服务", "dir": "mcp-servers" },
+          { "id": "agent-framework", "label": "Agent框架", "dir": "agent-frameworks" },
+          { "id": "ai-assistant", "label": "AI助手", "dir": "ai-assistants" }
+        ],
+        "categories": ["开发工具", "AI框架", "自动化", "集成"],
+        "requiredFields": ["id", "name", "type", "category", "summary"],
+        "optionalFields": ["tech_stack", "style_tags", "use_cases", "source_url"]
+      }
+    },
+    {
+      "name": "DeepBlueIdentity",
+      "label": "深蓝身份库",
+      "labelEn": "DeepBlue Identity",
+      "remote": "https://github.com/pingta-guangpingwang/DeepBlueIdentity.git",
+      "visible": true,
+      "taxonomy": {
+        "types": [
+          { "id": "identity", "label": "身份", "dir": "identities" }
+        ],
+        "categories": ["角色扮演", "专业顾问", "创意助手", "技术专家"],
+        "requiredFields": ["id", "name", "type", "category", "summary"],
+        "optionalFields": ["style_tags", "use_cases"]
+      }
+    }
+  ]
+}
