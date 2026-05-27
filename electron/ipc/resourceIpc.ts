@@ -70,4 +70,12 @@ export function registerResourceIpc(): void {
   ipcMain.handle('taxonomy:label', async (_event, code: string) => {
     return taxonomyStore.getLabel(code)
   })
+
+  ipcMain.handle('taxonomy:children', async (_event, facetName: string, parentCode: string) => {
+    return taxonomyStore.getChildren(facetName, parentCode)
+  })
+
+  ipcMain.handle('taxonomy:roots', async (_event, facetName: string) => {
+    return taxonomyStore.getRoots(facetName)
+  })
 }

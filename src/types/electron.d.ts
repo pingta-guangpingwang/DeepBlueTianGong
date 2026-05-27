@@ -198,6 +198,8 @@ export interface ElectronAPI {
   taxonomyResolve: (facets: any) => Promise<Record<string, { label: string; values: Array<{ code: string; label: string }> }>>
   taxonomyExpand: (facets: any) => Promise<string>
   taxonomyLabel: (code: string) => Promise<string>
+  taxonomyChildren: (facetName: string, parentCode: string) => Promise<Array<{ code: string; label: string; parents: string[]; aliases: string[] }>>
+  taxonomyRoots: (facetName: string) => Promise<Array<{ code: string; label: string; parents: string[]; aliases: string[] }>>
 }
 
 declare global {

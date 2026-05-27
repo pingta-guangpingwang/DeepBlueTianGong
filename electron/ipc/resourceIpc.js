@@ -56,4 +56,10 @@ function registerResourceIpc() {
     electron_1.ipcMain.handle('taxonomy:label', async (_event, code) => {
         return taxonomyStore_1.taxonomyStore.getLabel(code);
     });
+    electron_1.ipcMain.handle('taxonomy:children', async (_event, facetName, parentCode) => {
+        return taxonomyStore_1.taxonomyStore.getChildren(facetName, parentCode);
+    });
+    electron_1.ipcMain.handle('taxonomy:roots', async (_event, facetName) => {
+        return taxonomyStore_1.taxonomyStore.getRoots(facetName);
+    });
 }

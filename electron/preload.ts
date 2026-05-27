@@ -86,4 +86,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   taxonomyResolve: (facets: any) => ipcRenderer.invoke('taxonomy:resolve', facets),
   taxonomyExpand: (facets: any) => ipcRenderer.invoke('taxonomy:expand', facets),
   taxonomyLabel: (code: string) => ipcRenderer.invoke('taxonomy:label', code),
+  taxonomyChildren: (facetName: string, parentCode: string) => ipcRenderer.invoke('taxonomy:children', facetName, parentCode),
+  taxonomyRoots: (facetName: string) => ipcRenderer.invoke('taxonomy:roots', facetName),
 })
