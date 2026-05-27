@@ -3,7 +3,8 @@ import { useAppContext } from '../../context/AppContext'
 
 // 本地 code → label 索引
 type CodeMap = Map<string, string>
-type FacetDef = { prefix: string; label: string; multi: boolean; values: Array<{ code: string; label: string }> }
+type FacetValue = { code: string; label: string; parents: string[]; aliases?: string[] }
+type FacetDef = { prefix: string; label: string; multi: boolean; values: FacetValue[] }
 type FacetDict = Record<string, FacetDef>
 
 interface ResolvedFacet {
@@ -90,9 +91,32 @@ export default function WorkshopView() {
   // 核心筛选维度（从 taxonomy 提取）
   const filterableFacets = useMemo(() => {
     const names = Object.keys(facetDict)
-    // 优先展示 role, task, format, level 作为快速筛选
-    const priority = ['role', 'task', 'format', 'level']
+    const priority = ['occupation', 'skill', 'format', 'level']
     return [...priority.filter(p => names.includes(p)), ...names.filter(n => !priority.includes(n))]
+  }, [facetDict])
+
+  // 层级展开状态（用于 occupation/skill 树形筛选）
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({})
+
+  // 构建父子关系：childCode → parentCode 列表、parentCode → children 列表
+  const { parentMap, childrenMap, rootNodes } = useMemo(() => {
+    const pMap = new Map<string, string[]>()
+    const cMap = new Map<string, string[]>()
+    const roots = new Map<string, string[]>() // facetName → root codes
+    for (const [fname, def] of Object.entries(facetDict)) {
+      const facetRoots: string[] = []
+      for (const v of def.values) {
+        pMap.set(v.code, v.parents || [])
+        for (const p of v.parents || []) {
+          const siblings = cMap.get(p) || []
+          siblings.push(v.code)
+          cMap.set(p, siblings)
+        }
+        if (!v.parents || v.parents.length === 0) facetRoots.push(v.code)
+      }
+      roots.set(fname, facetRoots)
+    }
+    return { parentMap: pMap, childrenMap: cMap, rootNodes: roots }
   }, [facetDict])
 
   const filteredResources = useMemo(() => {
@@ -252,32 +276,100 @@ export default function WorkshopView() {
     )
   }
 
+  // 递归计算某节点及其所有后代的资源计数总和
+  const countTree = useCallback((facetName: string, code: string, counts: Record<string, number>): number => {
+    let total = counts[code] || 0
+    const kids = childrenMap.get(code) || []
+    for (const kid of kids) total += countTree(facetName, kid, counts)
+    return total
+  }, [childrenMap])
+
+  // 树形筛选 UI（用于 occupation、skill 等层级维度）
+  const renderTreeFilter = (facetName: string, def: FacetDef, counts: Record<string, number>, depth: number) => {
+    const roots = rootNodes.get(facetName) || []
+    const isExpanded = (code: string) => expandedNodes[`${facetName}/${code}`] || false
+    const toggleExpand = (code: string) => {
+      setExpandedNodes(prev => ({ ...prev, [`${facetName}/${code}`]: !prev[`${facetName}/${code}`] }))
+    }
+
+    const renderNode = (code: string, d: number) => {
+      const v = def.values.find(x => x.code === code)
+      if (!v || v.code.endsWith('000')) return null
+      const kids = childrenMap.get(code) || []
+      const hasKids = kids.length > 0
+      const expanded = isExpanded(code)
+      const selected = facetFilters[facetName] === code
+      const treeCount = countTree(facetName, code, counts)
+
+      return (
+        <div key={code} className="tree-node" style={{ paddingLeft: d * 16 }}>
+          <div className="tree-row">
+            {hasKids && (
+              <button className="tree-toggle" onClick={() => toggleExpand(code)}>
+                {expanded ? '▾' : '▸'}
+              </button>
+            )}
+            {!hasKids && <span className="tree-toggle tree-toggle-spacer" />}
+            <button
+              className={`tree-pill ${selected ? 'active' : ''}`}
+              onClick={() => setFacetFilters(prev => selected ? (() => { const n = { ...prev }; delete n[facetName]; return n })() : { ...prev, [facetName]: code })}
+              title={v.label}
+            >
+              {v.label}
+              {treeCount > 0 && <span className="pill-count">{treeCount}</span>}
+            </button>
+          </div>
+          {hasKids && expanded && kids.map(kid => renderNode(kid, d + 1))}
+        </div>
+      )
+    }
+
+    return (
+      <div className="filter-tree">
+        {roots.map(r => renderNode(r, 0))}
+      </div>
+    )
+  }
+
+  // 扁平 pills（用于 format、level 等非层级维度）
+  const renderFlatFilter = (facetName: string, def: FacetDef, counts: Record<string, number>) => {
+    const flatValues = def.values.filter(v => !v.code.endsWith('000'))
+    return (
+      <div className="filter-pills">
+        <button
+          className={`filter-pill ${!facetFilters[facetName] ? 'active' : ''}`}
+          onClick={() => setFacetFilters(prev => { const n = { ...prev }; delete n[facetName]; return n })}
+        >
+          全部
+        </button>
+        {flatValues.map(v => (
+          <button
+            key={v.code}
+            className={`filter-pill ${facetFilters[facetName] === v.code ? 'active' : ''}`}
+            onClick={() => setFacetFilters(prev => ({ ...prev, [facetName]: v.code }))}
+            title={v.label}
+          >
+            {v.label}{counts[v.code] ? <span className="pill-count">{counts[v.code]}</span> : ''}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   // 分面筛选 UI
   const renderFacetFilters = () => {
     if (filterableFacets.length === 0) return null
+    // occupation 和 skill 有层级，用树形；format/level 用扁平
+    const treeFacets = new Set(['occupation', 'skill', 'knowledge', 'transversal'])
     return filterableFacets.map(name => {
       const def = facetDict[name]
       if (!def) return null
       const counts = facetCounts[name] || {}
+      const isTree = treeFacets.has(name)
       return (
-        <div key={name} className="filter-row">
+        <div key={name} className="filter-row filter-row-tree">
           <span className="filter-label">{def.label}</span>
-          <button
-            className={`filter-pill ${!facetFilters[name] ? 'active' : ''}`}
-            onClick={() => setFacetFilters(prev => { const n = { ...prev }; delete n[name]; return n })}
-          >
-            全部
-          </button>
-          {def.values.filter(v => !v.code.endsWith('000')).slice(0, 8).map(v => (
-            <button
-              key={v.code}
-              className={`filter-pill ${facetFilters[name] === v.code ? 'active' : ''}`}
-              onClick={() => setFacetFilters(prev => ({ ...prev, [name]: v.code }))}
-              title={v.label}
-            >
-              {v.label}{counts[v.code] ? <span className="pill-count">{counts[v.code]}</span> : ''}
-            </button>
-          ))}
+          {isTree ? renderTreeFilter(name, def, counts, 0) : renderFlatFilter(name, def, counts)}
         </div>
       )
     })

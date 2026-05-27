@@ -490,6 +490,68 @@ body {
   margin-left: 2px;
   font-size: 10px;
 }
+
+/* Filter tree (hierarchical facets: occupation, skill) */
+.filter-row-tree {
+  align-items: flex-start;
+}
+.filter-tree {
+  flex: 1;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.tree-node {
+  /* children indented via inline style */
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 0;
+}
+.tree-toggle {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tree-toggle:hover { color: var(--text-primary); }
+.tree-toggle-spacer { visibility: hidden; }
+.tree-pill {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-align: left;
+}
+.tree-pill:hover {
+  background: var(--bg-hover, #2a2a3a);
+  color: var(--text-primary);
+}
+.tree-pill.active {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  color: var(--accent-light, #7cacff);
+}
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .search-result-hint {
   font-size: 11px;
   color: var(--text-muted);
