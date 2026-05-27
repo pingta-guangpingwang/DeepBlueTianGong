@@ -52,6 +52,7 @@ interface ManifestItem {
   summary: string
   summary_en?: string
   file: string
+  facets?: Record<string, any>
 }
 
 interface Manifest {
@@ -279,9 +280,11 @@ class ResourceStore {
             const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
             if (fmMatch) {
               item.body = fmMatch[2] || ''
-              if (!item.summary_en) {
-                const fm = yaml.load(fmMatch[1]) as Record<string, any> | null
-                if (fm?.summary_en) item.summary_en = String(fm.summary_en).replace(/\s+/g, ' ').trim()
+              const fm = yaml.load(fmMatch[1]) as Record<string, any> | null
+              if (fm) {
+                if (!item.summary_en && fm.summary_en) item.summary_en = String(fm.summary_en).replace(/\s+/g, ' ').trim()
+                if (!item.facets && fm.facets) item.facets = fm.facets as Record<string, any>
+                item.rawYaml = fm
               }
             } else {
               item.body = raw
@@ -312,7 +315,7 @@ class ResourceStore {
   // ============ 用户添加 ============
 
   /** 用户添加资源 */
-  async addResource(resource: Omit<ResourceItem, 'file'> & { content: string }, repo: string): Promise<{ success: boolean; path?: string }> {
+  async addResource(resource: Omit<ResourceItem, 'file'> & { content: string; facets?: Record<string, any> }, repo: string): Promise<{ success: boolean; path?: string }> {
     console.log('[addResource] 写入:', resource.name, '->', repo, resource.type, resource.category)
     const repoPath = getRepoPath(repo)
     if (!fs.existsSync(repoPath)) {
@@ -364,6 +367,7 @@ class ResourceStore {
       source_url: resource.source_url || '',
       summary: resource.summary || '',
       file: relFile,
+      facets: resource.facets,
     }
     const aiItems = this.aiIndexes.get(repo) || []
     aiItems.push(manifestItem)
@@ -657,6 +661,35 @@ class ResourceStore {
     }
   }
 
+  /** 基础 YAML 校验：仅检查变更 .md 文件的必填字段，不阻止修改/删除 */
+  async validateCommitYaml(repo: string): Promise<{
+    valid: boolean
+    errors: string[]
+    filesToCommit: Array<{ path: string; status: string }>
+  }> {
+    const allChanges = await this.getLocalChanges(repo)
+    if (allChanges.length === 0) {
+      return { valid: true, errors: [], filesToCommit: [] }
+    }
+
+    const errors: string[] = []
+    const filesToCommit: Array<{ path: string; status: string }> = []
+    // 排除纯删除(D)和目录，其余都纳入提交
+    for (const change of allChanges) {
+      if (change.path.endsWith('/') || change.path.endsWith('\\')) continue
+      if (change.status === 'D') continue
+      filesToCommit.push(change)
+
+      if (!change.path.endsWith('.md')) continue
+      const yamlResult = await this.validateNewFileYaml(repo, change.path)
+      if (!yamlResult.valid) {
+        errors.push(...yamlResult.errors)
+      }
+    }
+
+    return { valid: errors.length === 0, errors, filesToCommit }
+  }
+
   /** 提交范围验证：仅新增文件 + YAML 必填字段 */
   async validateCommitScope(repo: string): Promise<{
     valid: boolean
@@ -706,6 +739,21 @@ class ResourceStore {
     if (!r.ok) return { success: false, message: `创建分支失败: ${r.output}` }
 
     return { success: true, message: `已创建分支: ${branchName}` }
+  }
+
+  /** 全部提交：git add --all + commit（不做范围限制） */
+  async commitAll(repo: string, message: string): Promise<{ success: boolean; message: string }> {
+    if (!await this.isGitRepo(repo)) {
+      return { success: false, message: '不是 Git 仓库' }
+    }
+
+    const addR = await this.gitSilent(repo, 'add --all')
+    if (!addR.ok) return { success: false, message: `Git add 失败: ${addR.output}` }
+
+    const commitR = await this.gitSilent(repo, `commit -m "${message}"`)
+    if (!commitR.ok) return { success: false, message: `提交失败: ${commitR.output}` }
+
+    return { success: true, message: '提交成功' }
   }
 
   /** 提交变更 */
@@ -965,6 +1013,7 @@ class ResourceStore {
       summary_en: item.summary_en,
       file: item.file || '',
       repo,
+      facets: item.facets,
     }
   }
 }

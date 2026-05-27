@@ -19,6 +19,7 @@ export interface ResourceItem {
   repo: string
   rawYaml?: Record<string, any>
   body?: string
+  facets?: Record<string, any>
 }
 
 export interface PendingResourceItem {
@@ -57,12 +58,41 @@ export interface SourceConfig {
   id: string
   name: string
   targetRepo: string
+  skillId: string
+  config: Record<string, any>
   prompt: string
   schedule: string
   parallelism: number
   batchSize: number
   enabled: boolean
   autoSubmit: boolean
+}
+
+export interface SkillManifest {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: string
+  icon?: string
+  configSchema: {
+    type: 'object'
+    required: string[]
+    properties: Record<string, {
+      type: string
+      description: string
+      default?: any
+      enum?: string[]
+      minimum?: number
+      maximum?: number
+    }>
+  }
+  category: 'browser' | 'api' | 'cli' | 'filesystem' | 'database' | 'custom'
+  dependencies?: {
+    npm?: string[]
+    binaries?: string[]
+  }
+  loaded?: boolean
 }
 
 export interface CollectorEvent {
@@ -86,7 +116,7 @@ export interface CommitResult {
   repo: string
   success: boolean
   message: string
-  step?: 'scope-check' | 'pull' | 'commit' | 'push'
+  step?: 'yaml-check' | 'scope-check' | 'pull' | 'commit' | 'push'
 }
 
 export interface ElectronAPI {
@@ -146,9 +176,28 @@ export interface ElectronAPI {
   windowMaximize: () => Promise<void>
   windowClose: () => Promise<void>
 
+  // Skill 管理
+  skillDiscover: () => Promise<SkillManifest[]>
+  skillList: () => Promise<(SkillManifest & { loaded: boolean })[]>
+  skillGet: (skillId: string) => Promise<SkillManifest | null>
+  skillLoad: (skillId: string) => Promise<{ success: boolean; message?: string }>
+  skillUnload: (skillId: string) => Promise<{ success: boolean; message?: string }>
+  skillCheckDeps: (skillId: string) => Promise<{ ok: boolean; missing: string[] }>
+  skillInstallFromZip: () => Promise<{ success: boolean; message: string; data?: SkillManifest }>
+  skillInstallFromUrl: (url: string) => Promise<{ success: boolean; message: string; data?: SkillManifest }>
+  skillUninstall: (skillId: string) => Promise<{ success: boolean; message: string }>
+  skillGenerateTemplate: (params: any) => Promise<{ success: boolean; data?: string; message?: string }>
+  skillOpenDir: () => Promise<{ success: boolean }>
+
   // 设置
   getAppSettings: () => Promise<any>
   setAppSettings: (settings: any) => Promise<{ success: boolean }>
+
+  // 分面分类
+  taxonomyFacets: () => Promise<Record<string, any>>
+  taxonomyResolve: (facets: any) => Promise<Record<string, { label: string; values: Array<{ code: string; label: string }> }>>
+  taxonomyExpand: (facets: any) => Promise<string>
+  taxonomyLabel: (code: string) => Promise<string>
 }
 
 declare global {

@@ -192,34 +192,30 @@ export function registerPendingIpc(): void {
     const results: Array<{ repo: string; success: boolean; message: string; step?: string }> = []
 
     for (const repo of repos) {
-      const changes = await resourceStore.getLocalChanges(repo.name)
-      if (changes.length === 0) {
+      // 1. 基础 YAML 校验
+      const yamlCheck = await resourceStore.validateCommitYaml(repo.name)
+      if (!yamlCheck.valid) {
+        results.push({ repo: repo.name, success: false, message: yamlCheck.errors.join('\n'), step: 'yaml-check' })
+        continue
+      }
+
+      if (yamlCheck.filesToCommit.length === 0) {
         results.push({ repo: repo.name, success: true, message: '无变更，跳过' })
         continue
       }
 
-      const scopeCheck = await resourceStore.validateCommitScope(repo.name)
-      if (!scopeCheck.valid) {
-        results.push({ repo: repo.name, success: false, message: scopeCheck.errors.join('\n'), step: 'scope-check' })
-        continue
-      }
-
-      const pullResult = await resourceStore.forcePullOrAbort(repo.name)
-      if (!pullResult.success) {
-        results.push({ repo: repo.name, success: false, message: pullResult.message, step: 'pull' })
-        continue
-      }
-
-      const newFilePaths = scopeCheck.newFiles.map(f => f.path)
-      const commitResult = await resourceStore.commitChanges(repo.name, message, newFilePaths)
+      // 2. 提交
+      const escaped = message.replace(/"/g, '\\"')
+      const commitResult = await resourceStore.commitAll(repo.name, escaped)
       if (!commitResult.success) {
         results.push({ repo: repo.name, success: false, message: commitResult.message, step: 'commit' })
         continue
       }
 
+      // 3. 推送
       const status = await resourceStore.getRepoStatus(repo.name).catch(() => null)
       const branch = status?.branch || 'main'
-      const pushResult = await resourceStore.safePushBranch(repo.name, branch)
+      const pushResult = await resourceStore.pushBranch(repo.name, branch)
       if (pushResult.success) {
         const contribs = userContributionStore.contributions.filter(c => c.repo === repo.name && !c.committed)
         if (contribs.length > 0) {

@@ -2,6 +2,7 @@
 
 import { ipcMain } from 'electron'
 import { resourceStore } from '../core/resourceStore'
+import { taxonomyStore } from '../config/taxonomyStore'
 
 export function registerResourceIpc(): void {
 
@@ -51,5 +52,22 @@ export function registerResourceIpc(): void {
 
   ipcMain.handle('resource:clone', async (_event, repo: string, remoteUrl?: string) => {
     return resourceStore.cloneRepo(repo, remoteUrl)
+  })
+
+  // ============ 分面分类体系 ============
+  ipcMain.handle('taxonomy:facets', async () => {
+    return taxonomyStore.getFacets()
+  })
+
+  ipcMain.handle('taxonomy:resolve', async (_event, facets: any) => {
+    return taxonomyStore.resolve(facets)
+  })
+
+  ipcMain.handle('taxonomy:expand', async (_event, facets: any) => {
+    return taxonomyStore.expand(facets)
+  })
+
+  ipcMain.handle('taxonomy:label', async (_event, code: string) => {
+    return taxonomyStore.getLabel(code)
   })
 }

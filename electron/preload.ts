@@ -64,7 +64,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMaximize: () => ipcRenderer.invoke('window:maximize'),
   windowClose: () => ipcRenderer.invoke('window:close'),
 
+  // ============ Skill 管理 ============
+  skillDiscover: () => ipcRenderer.invoke('skill:discover'),
+  skillList: () => ipcRenderer.invoke('skill:list'),
+  skillGet: (skillId: string) => ipcRenderer.invoke('skill:get', skillId),
+  skillLoad: (skillId: string) => ipcRenderer.invoke('skill:load', skillId),
+  skillUnload: (skillId: string) => ipcRenderer.invoke('skill:unload', skillId),
+  skillCheckDeps: (skillId: string) => ipcRenderer.invoke('skill:check-deps', skillId),
+  skillInstallFromZip: () => ipcRenderer.invoke('skill:install-from-zip'),
+  skillInstallFromUrl: (url: string) => ipcRenderer.invoke('skill:install-from-url', url),
+  skillUninstall: (skillId: string) => ipcRenderer.invoke('skill:uninstall', skillId),
+  skillGenerateTemplate: (params: any) => ipcRenderer.invoke('skill:generate-template', params),
+  skillOpenDir: () => ipcRenderer.invoke('skill:open-dir'),
+
   // ============ 应用设置 ============
   getAppSettings: () => ipcRenderer.invoke('app:get-settings'),
   setAppSettings: (settings: any) => ipcRenderer.invoke('app:set-settings', settings),
+
+  // ============ 分面分类 ============
+  taxonomyFacets: () => ipcRenderer.invoke('taxonomy:facets'),
+  taxonomyResolve: (facets: any) => ipcRenderer.invoke('taxonomy:resolve', facets),
+  taxonomyExpand: (facets: any) => ipcRenderer.invoke('taxonomy:expand', facets),
+  taxonomyLabel: (code: string) => ipcRenderer.invoke('taxonomy:label', code),
 })

@@ -1,19 +1,54 @@
 // 深蓝天工 · 知识采集引擎 — Electron 主进程
 
+// 早期检测：ELECTRON_RUN_AS_NODE 会导致 Electron 以纯 Node.js 模式运行
+// 注意：getenv() 在 C/C++ 中对空字符串也会返回非 NULL（即真值），
+// 所以必须完全删除此变量，不能仅设为空字符串。
+if (process.env.ELECTRON_RUN_AS_NODE !== undefined) {
+  console.error('')
+  console.error('========================================')
+  console.error('  错误: ELECTRON_RUN_AS_NODE 环境变量已设置')
+  console.error('========================================')
+  console.error('')
+  console.error('此变量会导致 Electron 以纯 Node.js 模式运行，app 对象不可用。')
+  console.error('请先清除此环境变量后再启动：')
+  console.error('')
+  console.error('  Windows CMD:  set ELECTRON_RUN_AS_NODE=')
+  console.error('  Windows PS:   Remove-Item Env:\\ELECTRON_RUN_AS_NODE')
+  console.error('  Git Bash:     unset ELECTRON_RUN_AS_NODE')
+  console.error('')
+  console.error('或直接使用 start.bat 启动（已自动清除）。')
+  console.error('')
+  process.exit(1)
+}
+
+console.log('[TianGong] 诊断: ELECTRON_RUN_AS_NODE=', JSON.stringify(process.env.ELECTRON_RUN_AS_NODE))
+console.log('[TianGong] 诊断: NODE_ENV=', JSON.stringify(process.env.NODE_ENV))
+console.log('[TianGong] 诊断: __dirname=', __dirname)
+console.log('[TianGong] 诊断: 开始加载依赖...')
+
 import { app, BrowserWindow, Menu, ipcMain } from 'electron'
+console.log('[TianGong] 诊断: electron 导入成功, app.commandLine=', typeof app?.commandLine)
 import * as path from 'path'
+import * as fs from 'fs'
 import { registerResourceIpc } from './ipc/resourceIpc'
 import { registerPendingIpc } from './ipc/pendingIpc'
 import { registerCollectorIpc } from './ipc/collectorIpc'
 import { registerRepoIpc } from './ipc/repoIpc'
+import { registerSkillIpc } from './ipc/skillIpc'
+console.log('[TianGong] 诊断: IPC 模块导入成功')
+import { skillRegistry } from './collector/skillRegistry'
+import { sourceConfig } from './config/sourceConfig'
+console.log('[TianGong] 诊断: 所有模块导入成功')
 
 const preloadPath = path.join(__dirname, 'preload.js')
+console.log('[TianGong] 诊断: preload 路径=', preloadPath, '存在=', fs.existsSync(preloadPath))
 
 app.commandLine.appendSwitch('disable-gpu-sandbox')
 
 let mainWindow: BrowserWindow | null = null
 
 function createMainWindow(): BrowserWindow {
+  console.log('[TianGong] 诊断: 开始创建 BrowserWindow...')
   const win = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -27,27 +62,48 @@ function createMainWindow(): BrowserWindow {
     },
     show: false,
   })
+  console.log('[TianGong] 诊断: BrowserWindow 创建成功')
 
   win.once('ready-to-show', () => {
     win.show()
   })
 
   if (process.env.NODE_ENV === 'development') {
-    const port = process.env.VITE_DEV_PORT || '29348'
-    win.loadURL(`http://localhost:${port}`)
+    let port = process.env.VITE_DEV_PORT || '29348'
+    // 读取 Vite 实际端口（strictPort 模式下通常一致，但做兜底）
+    try {
+      const portFile = path.join(__dirname, '..', '.vite', 'port')
+      if (fs.existsSync(portFile)) {
+        port = fs.readFileSync(portFile, 'utf-8').trim()
+      }
+    } catch { /* fallback to env/default */ }
+    const devUrl = `http://localhost:${port}`
+    console.log('[TianGong] 诊断: 开发模式, 加载 URL=', devUrl)
+    win.loadURL(devUrl)
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    const prodPath = path.join(__dirname, '..', 'dist', 'index.html')
+    console.log('[TianGong] 诊断: 生产模式, 加载文件=', prodPath, '存在=', fs.existsSync(prodPath))
+    win.loadFile(prodPath)
   }
 
   return win
 }
 
-function registerAllHandlers() {
+async function registerAllHandlers() {
+  console.log('[TianGong] 诊断: 开始注册 IPC 处理器...')
   Menu.setApplicationMenu(null)
   registerResourceIpc()
   registerPendingIpc()
   registerCollectorIpc()
   registerRepoIpc()
+  registerSkillIpc()
+  console.log('[TianGong] 诊断: IPC 处理器注册完成')
+
+  // 初始化 Skill 系统
+  sourceConfig.ensureSkillIds()
+  await skillRegistry.discover()
+  const manifests = skillRegistry.getKnownManifests()
+  console.log('[TianGong] 已发现 Skills:', manifests.map(m => m.id).join(', ') || '(无)')
 
   // 窗口控制
   ipcMain.handle('window:minimize', () => mainWindow?.minimize())
@@ -83,8 +139,15 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   console.log('[TianGong] app.whenReady 开始初始化 PID=', MY_PID)
-  mainWindow = createMainWindow()
-  registerAllHandlers()
+  try {
+    mainWindow = createMainWindow()
+    console.log('[TianGong] 诊断: 主窗口创建完成, 开始注册处理器...')
+    await registerAllHandlers()
+    console.log('[TianGong] 诊断: 初始化全部完成')
+  } catch (err: any) {
+    console.error('[TianGong] 诊断: 初始化失败:', err?.message || err)
+    console.error(err?.stack)
+  }
 })
 
 const forceExit = (sig: string) => process.on(sig, () => {
@@ -110,9 +173,18 @@ app.on('activate', () => {
 })
 
 process.on('uncaughtException', (err) => {
+  console.error('[TianGong] ========================================')
   console.error('[TianGong] 未捕获异常:', err.message)
+  console.error('[TianGong] 异常类型:', err.name)
   console.error(err.stack)
+  console.error('[TianGong] ========================================')
 })
 process.on('unhandledRejection', (reason) => {
+  console.error('[TianGong] ========================================')
   console.error('[TianGong] 未处理的 Promise 拒绝:', reason)
+  if (reason instanceof Error) {
+    console.error('[TianGong] 错误类型:', reason.name)
+    console.error(reason.stack)
+  }
+  console.error('[TianGong] ========================================')
 })
